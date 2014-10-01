@@ -20,14 +20,16 @@ package org.apache.hadoop.gateway.ha.provider.impl;
 import org.apache.hadoop.gateway.ha.provider.HaDescriptor;
 import org.apache.hadoop.gateway.ha.provider.HaServiceConfig;
 import org.junit.Test;
+import org.custommonkey.xmlunit.XMLTestCase;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import org.xml.sax.SAXException;
 import java.io.StringWriter;
 
 import static org.junit.Assert.*;
 
-public class HaDescriptorManagerTest {
+public class HaDescriptorManagerTest extends XMLTestCase {
 
    @Test
    public void testDescriptorLoad() throws IOException {
@@ -67,7 +69,7 @@ public class HaDescriptorManagerTest {
    }
 
    @Test
-   public void testDescriptorStoring() throws IOException {
+   public void testDescriptorStoring() throws IOException, SAXException {
       HaDescriptor descriptor = HaDescriptorFactory.createDescriptor();
       descriptor.addServiceConfig(HaDescriptorFactory.createServiceConfig("foo", "false", "42", "1000", "3", "3000"));
       descriptor.addServiceConfig(HaDescriptorFactory.createServiceConfig("bar", "true", "3", "5000", "5", "8000"));
@@ -79,7 +81,7 @@ public class HaDescriptorManagerTest {
             "  <service enabled=\"false\" failoverSleep=\"1000\" maxFailoverAttempts=\"42\" maxRetryAttempts=\"3\" name=\"foo\" retrySleep=\"3000\"/>\n" +
             "  <service enabled=\"true\" failoverSleep=\"5000\" maxFailoverAttempts=\"3\" maxRetryAttempts=\"5\" name=\"bar\" retrySleep=\"8000\"/>\n" +
             "</ha>\n";
-      assertEquals(xml, descriptorXml);
+      assertXMLEqual(xml, descriptorXml);
    }
 
 
