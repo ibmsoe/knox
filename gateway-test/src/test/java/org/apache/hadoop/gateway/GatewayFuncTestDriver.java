@@ -53,9 +53,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
@@ -155,6 +157,18 @@ public class GatewayFuncTestDriver {
     } catch (ServiceLifecycleException e) {
       e.printStackTrace(); // I18N not required.
     }
+    File stacksDir = new File( config.getGatewayServicesDir() );
+    stacksDir.mkdirs();
+    //TODO: [sumit] This is a hack for now, need to find a better way to locate the source resources for 'stacks' to be tested
+    String pathToStacksSource = "gateway-service-definitions/src/main/resources/services";
+    File stacksSourceDir = new File( targetDir.getParent(), pathToStacksSource);
+    if (!stacksSourceDir.exists()) {
+      stacksSourceDir = new File( targetDir.getParentFile().getParent(), pathToStacksSource);
+    }
+    if (stacksSourceDir.exists()) {
+      FileUtils.copyDirectoryToDirectory(stacksSourceDir, stacksDir);
+    }
+
     gateway = GatewayServer.startGateway( config, srvcs );
     MatcherAssert.assertThat( "Failed to start gateway.", gateway, notNullValue() );
 
@@ -168,6 +182,7 @@ public class GatewayFuncTestDriver {
     FileUtils.deleteQuietly( new File( config.getGatewaySecurityDir() ) );
     FileUtils.deleteQuietly( new File( config.getGatewayDeploymentDir() ) );
     FileUtils.deleteQuietly( new File( config.getGatewayDataDir() ) );
+    FileUtils.deleteQuietly( new File( config.getGatewayServicesDir() ) );
 
     for( Service service : services.values() ) {
       service.server.stop();
@@ -194,13 +209,24 @@ public class GatewayFuncTestDriver {
     return getUrl( serviceRole, false );
   }
 
+  private String getLocalHostName() {
+    String hostName = "localhost";
+    try {
+      hostName = InetAddress.getByName( "127.0.0.1" ).getHostName();
+    } catch( UnknownHostException e ) {
+      // Ignore and use the default.
+    }
+    return hostName;
+  }
+
   public String getUrl( String serviceRole, boolean real ) {
     String url;
+    String localHostName = getLocalHostName();
     Service service = services.get( serviceRole );
     if( useGateway && !real ) {
-      url = "http://localhost:" + gateway.getAddresses()[0].getPort() + "/" + config.getGatewayPath() + service.gatewayPath;
+      url = "http://" + localHostName + ":" + gateway.getAddresses()[0].getPort() + "/" + config.getGatewayPath() + service.gatewayPath;
     } else if( service.mock ) {
-      url = "http://localhost:" + service.server.getPort();
+      url = "http://" + localHostName + ":" + service.server.getPort();
     } else {
       url = service.realUrl.toASCIIString();
     }
@@ -209,9 +235,10 @@ public class GatewayFuncTestDriver {
 
   public String getRealAddr( String role ) {
     String addr;
+    String localHostName = getLocalHostName();
     Service service = services.get( role );
     if( service.mock ) {
-      addr = "localhost:" + service.server.getPort();
+      addr = localHostName + ":" + service.server.getPort();
     } else {
       addr = service.realUrl.getHost() + ":" + service.realUrl.getPort();
     }
@@ -744,7 +771,7 @@ public class GatewayFuncTestDriver {
     getMock( "WEBHCAT" )
           .expect()
           .method( "GET" )
-          .pathInfo( "/v1/queue/" + job )
+          .pathInfo( "/v1/jobs/" + job )
           .respond()
           .status( HttpStatus.SC_OK )
           .content( getResourceBytes( "webhcat-job-status.json" ) )
@@ -758,7 +785,7 @@ public class GatewayFuncTestDriver {
         //.log().all()
         .content( "status.jobId", equalTo( job ) )
         .statusCode( HttpStatus.SC_OK )
-        .when().get( getUrl( "WEBHCAT" ) + "/v1/queue/{job}" + ( isUseGateway() ? "" : "?user.name=" + user ) ).asString();
+        .when().get( getUrl( "WEBHCAT" ) + "/v1/jobs/{job}" + ( isUseGateway() ? "" : "?user.name=" + user ) ).asString();
     log.debug( "STATUS=" + status );
     assertComplete();
   }

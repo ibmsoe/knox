@@ -97,6 +97,9 @@ public interface GatewayMessages {
   @Message( level = MessageLevel.ERROR, text = "Failed to redeploy topology {0}: {1}" )
   void failedToRedeployTopology( String name, @StackTrace(level=MessageLevel.DEBUG) Throwable e );
 
+  @Message(level = MessageLevel.ERROR, text = "Failed to load topology {0}: Topology configuration is invalid!")
+  void failedToLoadTopology(String fileName);
+
   @Message( level = MessageLevel.ERROR, text = "Failed to redeploy topologies: {0}" )
   void failedToRedeployTopologies( @StackTrace(level=MessageLevel.DEBUG) Throwable e );
 
@@ -123,6 +126,9 @@ public interface GatewayMessages {
 
   @Message( level = MessageLevel.WARN, text = "Ignoring service deployment contributor with invalid null role: {0}" )
   void ignoringServiceContributorWithMissingRole( String className );
+
+  @Message( level = MessageLevel.WARN, text = "Ignoring service deployment contributor with invalid null version: {0}" )
+  void ignoringServiceContributorWithMissingVersion( String className );
 
   @Message( level = MessageLevel.WARN, text = "Ignoring provider deployment contributor with invalid null name: {0}" )
   void ignoringProviderContributorWithMissingName( String className );
@@ -184,11 +190,11 @@ public interface GatewayMessages {
   @Message( level = MessageLevel.ERROR, text = "Failed to initialize contribution: {0}" )
   void failedToInitializeContribution( @StackTrace( level = MessageLevel.DEBUG ) Exception e );
 
-  @Message( level = MessageLevel.ERROR, text = "Failed to initialize servlet instace: {0}" )
+  @Message( level = MessageLevel.ERROR, text = "Failed to initialize servlet instance: {0}" )
   void failedToInitializeServletInstace( @StackTrace( level = MessageLevel.DEBUG ) Exception e );
 
-  @Message( level = MessageLevel.ERROR, text = "Failed to execute filter: {0}" )
-  void failedToExecuteFilter( @StackTrace( level = MessageLevel.DEBUG ) Throwable t );
+  @Message( level = MessageLevel.ERROR, text = "Gateway processing failed: {0}" )
+  void failedToExecuteFilter( @StackTrace( level = MessageLevel.INFO ) Throwable t );
 
   @Message( level = MessageLevel.ERROR, text = "Failed to load topology {0}: {1}")
   void failedToLoadTopology( String fileName, @StackTrace( level = MessageLevel.DEBUG ) Exception e );
@@ -305,8 +311,7 @@ public interface GatewayMessages {
   void assumingKeyPassphraseIsMaster();
 
   @Message( level = MessageLevel.ERROR, text = "Failed to remove alias for cluster: {0} {1}." )
-  void failedToRemoveCredentialForCluster(String clusterName,
-      KeystoreServiceException e);
+  void failedToRemoveCredentialForCluster(String clusterName, Exception e);
 
   @Message( level = MessageLevel.WARN, text = "Failed to match path {0}" )
   void failedToMatchPath( String path );
@@ -325,4 +330,26 @@ public interface GatewayMessages {
 
   @Message( level = MessageLevel.INFO, text = "Computed roles/groups: {0} for principal: {1}" )
   void lookedUpUserRoles(Set<String> roleNames, String userName);
+
+  @Message( level = MessageLevel.INFO, text = "Configured services directory is {0}" )
+  void usingServicesDirectory(String path);
+
+  @Message( level = MessageLevel.ERROR, text = "Failed to unmarshall service definition file {0} file : {1}" )
+  void failedToLoadServiceDefinition(String fileName, @StackTrace( level = MessageLevel.DEBUG ) Exception e);
+
+  @Message( level = MessageLevel.ERROR, text = "Failed to find service definition file {0} file : {1}" )
+  void failedToFindServiceDefinitionFile(String fileName, @StackTrace( level = MessageLevel.DEBUG ) Exception e);
+
+  @Message( level = MessageLevel.ERROR, text = "Failed to find rewrite file {0} file : {1}" )
+  void failedToFindRewriteFile(String fileName, @StackTrace( level = MessageLevel.DEBUG ) Exception e);
+
+  @Message( level = MessageLevel.ERROR, text = "Failed to unmarshall rewrite file {0} file : {1}" )
+  void failedToLoadRewriteFile(String fileName, @StackTrace( level = MessageLevel.DEBUG ) Exception e);
+
+  @Message( level = MessageLevel.DEBUG, text = "No rewrite file found in service directory {0}" )
+  void noRewriteFileFound(String path);
+
+  @Message( level = MessageLevel.DEBUG, text = "Added Service definition name: {0}, role : {1}, version : {2}" )
+  void addedServiceDefinition(String serviceName, String serviceRole, String version);
+
 }

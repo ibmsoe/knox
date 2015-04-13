@@ -20,7 +20,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>org.apache.knox</groupId>
         <artifactId>gateway</artifactId>
         <version>0.6.0-SNAPSHOT</version>
     </parent>
@@ -36,6 +36,7 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
 
     <profiles>
         <profile>
@@ -94,6 +95,38 @@
                             </dependency>
                         </dependencies>
                     </plugin>
+                    <plugin>
+                        <!-- Using the dependency plugin to grab a dependency jar (gateway-service-definitions) and
+                        unpack some resources into the build directory so that it can be included in the assembly.
+                        The phase 'generate-resources' is chosen since it is not only the closest fit to the description
+                        of the action, but more importantly, it is a phase that is guaranteed to occur before the
+                        assembly which is tied to 'package'.
+                        -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>2.8</version>
+                        <executions>
+                            <execution>
+                                <id>unpack</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>${gateway-group}</groupId>
+                                            <artifactId>gateway-service-definitions</artifactId>
+                                            <type>jar</type>
+                                            <overWrite>true</overWrite>
+                                            <outputDirectory>${project.build.directory}</outputDirectory>
+                                            <includes>services/**/*</includes>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
@@ -135,11 +168,7 @@
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
-            <artifactId>gateway-service-oozie</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${gateway-group}</groupId>
-            <artifactId>gateway-service-webhcat</artifactId>
+            <artifactId>gateway-service-storm</artifactId>
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
@@ -147,7 +176,7 @@
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
-            <artifactId>gateway-service-yarn-rm</artifactId>
+            <artifactId>gateway-service-knoxsso</artifactId>
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
@@ -168,6 +197,10 @@
         <dependency>
             <groupId>${gateway-group}</groupId>
             <artifactId>gateway-provider-rewrite-func-service-registry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${gateway-group}</groupId>
+            <artifactId>gateway-provider-security-picketlink</artifactId>
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
@@ -192,6 +225,14 @@
         <dependency>
             <groupId>${gateway-group}</groupId>
             <artifactId>gateway-provider-security-authz-acls</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${gateway-group}</groupId>
+            <artifactId>gateway-provider-identity-assertion-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${gateway-group}</groupId>
+            <artifactId>gateway-provider-identity-assertion-concat</artifactId>
         </dependency>
         <dependency>
             <groupId>${gateway-group}</groupId>
@@ -225,6 +266,11 @@
             <artifactId>gateway-test-ldap-launcher</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>

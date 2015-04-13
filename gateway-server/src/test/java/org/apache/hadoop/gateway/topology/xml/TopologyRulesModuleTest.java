@@ -22,6 +22,7 @@ import org.apache.commons.digester3.binder.DigesterLoader;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Service;
 import org.apache.hadoop.gateway.topology.Topology;
+import org.apache.hadoop.gateway.topology.Version;
 import org.apache.hadoop.gateway.topology.builder.TopologyBuilder;
 import org.junit.After;
 import org.junit.Before;
@@ -39,6 +40,7 @@ import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.core.IsNull.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class TopologyRulesModuleTest {
@@ -68,11 +70,12 @@ public class TopologyRulesModuleTest {
 
     assertThat( topology.getName(), is( "topology" ) );
     assertThat( topology.getTimestamp(), is( file.lastModified() ) );
-    assertThat( topology.getServices().size(), is( 1 ) );
+    assertThat( topology.getServices().size(), is( 3 ) );
 
     Service comp = topology.getServices().iterator().next();
     assertThat( comp, notNullValue() );
-    assertThat( comp.getRole(), is( "WEBHDFS" ) );
+    assertThat( comp.getRole(), is("WEBHDFS") );
+    assertThat( comp.getVersion().toString(), is( "2.4.0" ) );
     assertThat( comp.getUrls().size(), is( 2 ) );
     assertThat( comp.getUrls(), hasItem( "http://host1:80/webhdfs" ) );
     assertThat( comp.getUrls(), hasItem( "http://host2:80/webhdfs" ) );
@@ -82,6 +85,21 @@ public class TopologyRulesModuleTest {
     assertThat( provider.isEnabled(), is(true) );
     assertThat( provider.getRole(), is( "authentication" ) );
     assertThat( provider.getParams().size(), is(5));
+
+    Service service = topology.getService("WEBHDFS", "webhdfs", new Version(2,4,0));
+    assertEquals(comp, service);
+
+    comp = topology.getService("RESOURCEMANAGER", null, new Version("2.5.0"));
+    assertThat( comp, notNullValue() );
+    assertThat( comp.getRole(), is("RESOURCEMANAGER") );
+    assertThat( comp.getVersion().toString(), is("2.5.0") );
+    assertThat(comp.getUrl(), is("http://host1:8088/ws") );
+
+    comp = topology.getService("HIVE", "hive", null);
+    assertThat( comp, notNullValue() );
+    assertThat( comp.getRole(), is("HIVE") );
+    assertThat( comp.getName(), is("hive") );
+    assertThat( comp.getUrl(), is("http://host2:10001/cliservice" ) );
   }
 
   @Test
@@ -116,6 +134,7 @@ public class TopologyRulesModuleTest {
     assertThat( service.getName(), is( "test-service-name" ) );
     assertThat( service.getParams(), hasEntry( is( "test-service-param-name-1" ), is( "test-service-param-value-1" ) ) );
     assertThat( service.getParams(), hasEntry( is( "test-service-param-name-2" ), is( "test-service-param-value-2" ) ) );
+    assertThat( service.getVersion(), is( new Version(1,0,0)));
   }
 
 
@@ -136,7 +155,7 @@ public class TopologyRulesModuleTest {
     assertThat( topology.getServices().size(), is( 4 ) );
     assertThat( topology.getProviders().size(), is( 2 ) );
 
-    Service webhdfsService = topology.getService( "WEBHDFS", null );
+    Service webhdfsService = topology.getService( "WEBHDFS", null, null);
     assertThat( webhdfsService, notNullValue() );
     assertThat( webhdfsService.getRole(), is( "WEBHDFS" ) );
     assertThat( webhdfsService.getName(), nullValue() );
@@ -144,21 +163,21 @@ public class TopologyRulesModuleTest {
     assertThat( webhdfsService.getUrls(), hasItem( "http://host1:50070/webhdfs" ) );
     assertThat( webhdfsService.getUrls(), hasItem( "http://host2:50070/webhdfs" ) );
 
-    Service webhcatService = topology.getService( "WEBHCAT", null );
+    Service webhcatService = topology.getService( "WEBHCAT", null, null);
     assertThat( webhcatService, notNullValue() );
     assertThat( webhcatService.getRole(), is( "WEBHCAT" ) );
     assertThat( webhcatService.getName(), nullValue() );
     assertThat( webhcatService.getUrls().size(), is( 1 ) );
     assertThat( webhcatService.getUrls(), hasItem( "http://host:50111/templeton" ) );
 
-    Service oozieService = topology.getService( "OOZIE", null );
+    Service oozieService = topology.getService( "OOZIE", null, null);
     assertThat( oozieService, notNullValue() );
     assertThat( oozieService.getRole(), is( "OOZIE" ) );
     assertThat( oozieService.getName(), nullValue() );
     assertThat( webhcatService.getUrls().size(), is( 1 ) );
     assertThat( oozieService.getUrls(), hasItem( "http://host:11000/oozie" ) );
 
-    Service hiveService = topology.getService( "HIVE", null );
+    Service hiveService = topology.getService( "HIVE", null, null);
     assertThat( hiveService, notNullValue() );
     assertThat( hiveService.getRole(), is( "HIVE" ) );
     assertThat( hiveService.getName(), nullValue() );
@@ -173,11 +192,11 @@ public class TopologyRulesModuleTest {
     assertThat( authenticationProvider.getParams().size(), is( 5 ) );
     assertThat( authenticationProvider.getParams().get("main.ldapRealm.contextFactory.url"), is( "ldap://localhost:33389" ) );
 
-    Provider identityAssertionProvider = topology.getProvider( "identity-assertion", "Pseudo" );
+    Provider identityAssertionProvider = topology.getProvider( "identity-assertion", "Default" );
     assertThat( identityAssertionProvider, notNullValue() );
     assertThat( identityAssertionProvider.isEnabled(), is( false ) );
     assertThat( identityAssertionProvider.getRole(), is( "identity-assertion" ) );
-    assertThat( identityAssertionProvider.getName(), is( "Pseudo" ) );
+    assertThat( identityAssertionProvider.getName(), is( "Default" ) );
     assertThat( identityAssertionProvider.getParams().size(), is( 2 ) );
     assertThat( identityAssertionProvider.getParams().get("name"), is( "user.name" ) );
   }
@@ -217,5 +236,4 @@ public class TopologyRulesModuleTest {
     assertThat( service.getParams(), hasEntry( is( "test-service-param-name-1" ), is( "test-service-param-value-1" ) ) );
     assertThat( service.getParams(), hasEntry( is( "test-service-param-name-2" ), is( "test-service-param-value-2" ) ) );
   }
-
 }

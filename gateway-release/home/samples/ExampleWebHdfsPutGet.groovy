@@ -25,6 +25,7 @@ dataDir = "/user/" + username + "/example"
 dataFile = "README"
 
 session = Hadoop.login( gateway, username, password )
+
 Hdfs.rm( session ).file( dataDir ).recursive().now()
 
 Hdfs.put( session ).file( dataFile ).to( dataDir + "/" + dataFile ).now()

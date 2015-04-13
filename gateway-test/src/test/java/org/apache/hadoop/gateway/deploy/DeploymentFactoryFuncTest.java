@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.gateway.deploy;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.gateway.GatewayTestConfig;
 import org.apache.hadoop.gateway.config.GatewayConfig;
 import org.apache.hadoop.gateway.services.DefaultGatewayServices;
@@ -30,24 +31,38 @@ import org.apache.log4j.Appender;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Test;
 import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.xml.HasXPath.hasXPath;
 import static org.junit.Assert.fail;
 
@@ -67,6 +82,7 @@ public class DeploymentFactoryFuncTest {
 
 //    ((GatewayTestConfig) config).setDeploymentDir( "clusters" );
 
+    addStacksDir(config, targetDir);
     DefaultGatewayServices srvcs = new DefaultGatewayServices();
     Map<String,String> options = new HashMap<String,String>();
     options.put("persist-master", "false");
@@ -120,6 +136,7 @@ public class DeploymentFactoryFuncTest {
     ((GatewayTestConfig) config).setGatewayHomeDir( gatewayDir.getAbsolutePath() );
     File deployDir = new File( config.getGatewayDeploymentDir() );
     deployDir.mkdirs();
+    addStacksDir(config, targetDir);
 
     DefaultGatewayServices srvcs = new DefaultGatewayServices();
     Map<String,String> options = new HashMap<String,String>();
@@ -174,6 +191,7 @@ public class DeploymentFactoryFuncTest {
     ((GatewayTestConfig) config).setGatewayHomeDir( gatewayDir.getAbsolutePath() );
     File deployDir = new File( config.getGatewayDeploymentDir() );
     deployDir.mkdirs();
+    addStacksDir(config, targetDir);
 
     DefaultGatewayServices srvcs = new DefaultGatewayServices();
     Map<String,String> options = new HashMap<String,String>();
@@ -203,7 +221,7 @@ public class DeploymentFactoryFuncTest {
     topology.addProvider( provider );
     Provider asserter = new Provider();
     asserter.setRole( "identity-assertion" );
-    asserter.setName("Pseudo");
+    asserter.setName("Default");
     asserter.setEnabled( true );
     topology.addProvider( asserter );
     Provider authorizer = new Provider();
@@ -213,8 +231,8 @@ public class DeploymentFactoryFuncTest {
     topology.addProvider( authorizer );
 
     WebArchive war = DeploymentFactory.createDeployment( config, topology );
-    //File dir = new File( System.getProperty( "user.dir" ) );
-    //File file = war.as( ExplodedExporter.class ).exportExploded( dir, "test-cluster.war" );
+//    File dir = new File( System.getProperty( "user.dir" ) );
+//    File file = war.as( ExplodedExporter.class ).exportExploded( dir, "test-cluster.war" );
 
     Document web = parse( war.get( "WEB-INF/web.xml" ).getAsset().openStream() );
     assertThat( web, hasXPath( "/web-app/servlet/servlet-name", equalTo( "test-cluster" ) ) );
@@ -249,8 +267,8 @@ public class DeploymentFactoryFuncTest {
     assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[6]/class", equalTo( "org.apache.hadoop.gateway.filter.AclsAuthorizationFilter" ) ) );
 
     assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[7]/role", equalTo( "dispatch" ) ) );
-    assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[7]/name", equalTo( "hdfs" ) ) );
-    assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[7]/class", equalTo( "org.apache.hadoop.gateway.hdfs.dispatch.HdfsDispatch" ) ) );
+    assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[7]/name", equalTo( "webhdfs" ) ) );
+    assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[7]/class", equalTo( "org.apache.hadoop.gateway.dispatch.GatewayDispatchFilter" ) ) );
 
     assertThat( gateway, hasXPath( "/gateway/resource[2]/pattern", equalTo( "/webhdfs/v1/**?**" ) ) );
     //assertThat( gateway, hasXPath( "/gateway/resource[2]/target", equalTo( "http://localhost:50070/webhdfs/v1/{path=**}?{**}" ) ) );
@@ -275,8 +293,247 @@ public class DeploymentFactoryFuncTest {
     assertThat( gateway, hasXPath( "/gateway/resource[1]/filter[6]/class", equalTo( "org.apache.hadoop.gateway.filter.AclsAuthorizationFilter" ) ) );
 
     assertThat( gateway, hasXPath( "/gateway/resource[2]/filter[7]/role", equalTo( "dispatch" ) ) );
-    assertThat( gateway, hasXPath( "/gateway/resource[2]/filter[7]/name", equalTo( "hdfs" ) ) );
-    assertThat( gateway, hasXPath( "/gateway/resource[2]/filter[7]/class", equalTo( "org.apache.hadoop.gateway.hdfs.dispatch.HdfsDispatch" ) ) );
+    assertThat( gateway, hasXPath( "/gateway/resource[2]/filter[7]/name", equalTo( "webhdfs" ) ) );
+    assertThat( gateway, hasXPath( "/gateway/resource[2]/filter[7]/class", equalTo( "org.apache.hadoop.gateway.dispatch.GatewayDispatchFilter" ) ) );
+  }
+
+
+   @Test
+   public void testWebXmlGeneration() throws IOException, SAXException, ParserConfigurationException, URISyntaxException {
+      GatewayConfig config = new GatewayTestConfig();
+      File targetDir = new File(System.getProperty("user.dir"), "target");
+      File gatewayDir = new File(targetDir, "gateway-home-" + UUID.randomUUID());
+      gatewayDir.mkdirs();
+      ((GatewayTestConfig) config).setGatewayHomeDir(gatewayDir.getAbsolutePath());
+      File deployDir = new File(config.getGatewayDeploymentDir());
+      deployDir.mkdirs();
+
+      DefaultGatewayServices srvcs = new DefaultGatewayServices();
+      Map<String, String> options = new HashMap<String, String>();
+      options.put("persist-master", "false");
+      options.put("master", "password");
+      try {
+         DeploymentFactory.setGatewayServices(srvcs);
+         srvcs.init(config, options);
+      } catch (ServiceLifecycleException e) {
+         e.printStackTrace(); // I18N not required.
+      }
+
+      Topology topology = new Topology();
+      topology.setName("test-cluster");
+      Service service = new Service();
+      service.setRole("WEBHDFS");
+      service.addUrl("http://localhost:50070/webhdfs");
+      topology.addService(service);
+      Provider provider = new Provider();
+      provider.setRole("authentication");
+      provider.setName("ShiroProvider");
+      provider.setEnabled(true);
+      Param param = new Param();
+      param.setName("contextConfigLocation");
+      param.setValue("classpath:app-context-security.xml");
+      provider.addParam(param);
+      topology.addProvider(provider);
+      Provider asserter = new Provider();
+      asserter.setRole("identity-assertion");
+      asserter.setName("Default");
+      asserter.setEnabled(true);
+      topology.addProvider(asserter);
+      Provider authorizer = new Provider();
+      authorizer.setRole("authorization");
+      authorizer.setName("AclsAuthz");
+      authorizer.setEnabled(true);
+      topology.addProvider(authorizer);
+      Provider ha = new Provider();
+      ha.setRole("ha");
+      ha.setName("HaProvider");
+      ha.setEnabled(true);
+      topology.addProvider(ha);
+
+      for (int i = 0; i < 100; i++) {
+         createAndTestDeployment(config, topology);
+      }
+   }
+
+   private void createAndTestDeployment(GatewayConfig config, Topology topology) throws IOException, SAXException, ParserConfigurationException {
+      WebArchive war = DeploymentFactory.createDeployment(config, topology);
+//      File dir = new File( System.getProperty( "user.dir" ) );
+//      File file = war.as( ExplodedExporter.class ).exportExploded( dir, "test-cluster.war" );
+
+      Document web = parse(war.get("WEB-INF/web.xml").getAsset().openStream());
+      assertThat(web, hasXPath("/web-app/servlet/servlet-class", equalTo("org.apache.hadoop.gateway.GatewayServlet")));
+      assertThat(web, hasXPath("/web-app/servlet/init-param/param-name", equalTo("gatewayDescriptorLocation")));
+      assertThat(web, hasXPath("/web-app/servlet/init-param/param-value", equalTo("gateway.xml")));
+      assertThat(web, hasXPath("/web-app/servlet-mapping/servlet-name", equalTo("test-cluster")));
+      assertThat(web, hasXPath("/web-app/servlet-mapping/url-pattern", equalTo("/*")));
+      //testing the order of listener classes generated
+      assertThat(web, hasXPath("/web-app/listener[2]/listener-class", equalTo("org.apache.hadoop.gateway.services.GatewayServicesContextListener")));
+      assertThat(web, hasXPath("/web-app/listener[3]/listener-class", equalTo("org.apache.hadoop.gateway.ha.provider.HaServletContextListener")));
+      assertThat(web, hasXPath("/web-app/listener[4]/listener-class", equalTo("org.apache.hadoop.gateway.filter.rewrite.api.UrlRewriteServletContextListener")));
+   }
+
+
+  @Test
+  public void testDeploymentWithoutReplayBufferSize() throws Exception {
+    GatewayConfig config = new GatewayTestConfig();
+    File targetDir = new File(System.getProperty("user.dir"), "target");
+    File gatewayDir = new File(targetDir, "gateway-home-" + UUID.randomUUID());
+    gatewayDir.mkdirs();
+    ((GatewayTestConfig) config).setGatewayHomeDir(gatewayDir.getAbsolutePath());
+    File deployDir = new File(config.getGatewayDeploymentDir());
+    deployDir.mkdirs();
+    addStacksDir(config, targetDir);
+
+    DefaultGatewayServices srvcs = new DefaultGatewayServices();
+    Map<String, String> options = new HashMap<String, String>();
+    options.put("persist-master", "false");
+    options.put("master", "password");
+    try {
+      DeploymentFactory.setGatewayServices(srvcs);
+      srvcs.init(config, options);
+    } catch (ServiceLifecycleException e) {
+      e.printStackTrace(); // I18N not required.
+    }
+
+    Service service;
+    Topology topology = new Topology();
+    topology.setName( "test-cluster" );
+
+    service = new Service();
+    service.setRole( "HIVE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hive-host:50001/" } ) );
+    topology.addService( service );
+
+    service = new Service();
+    service.setRole( "WEBHBASE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hbase-host:50002/" } ) );
+    topology.addService( service );
+
+    service = new Service();
+    service.setRole( "OOZIE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hbase-host:50003/" } ) );
+    topology.addService( service );
+
+    WebArchive war = DeploymentFactory.createDeployment( config, topology );
+    Document doc = parse( war.get( "WEB-INF/gateway.xml" ).getAsset().openStream() );
+    //dump( doc );
+
+    Node resourceNode, filterNode, paramNode;
+    String value;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='HIVE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "8" ) ) ;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='WEBHBASE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "8" ) ) ;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='OOZIE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "8" ) ) ;
+
+    FileUtils.deleteQuietly( deployDir );
+  }
+
+  @Test
+  public void testDeploymentWithReplayBufferSize() throws Exception {
+    GatewayConfig config = new GatewayTestConfig();
+    File targetDir = new File(System.getProperty("user.dir"), "target");
+    File gatewayDir = new File(targetDir, "gateway-home-" + UUID.randomUUID());
+    gatewayDir.mkdirs();
+    ((GatewayTestConfig) config).setGatewayHomeDir(gatewayDir.getAbsolutePath());
+    File deployDir = new File(config.getGatewayDeploymentDir());
+    deployDir.mkdirs();
+    addStacksDir(config, targetDir);
+
+    DefaultGatewayServices srvcs = new DefaultGatewayServices();
+    Map<String, String> options = new HashMap<String, String>();
+    options.put("persist-master", "false");
+    options.put("master", "password");
+    try {
+      DeploymentFactory.setGatewayServices(srvcs);
+      srvcs.init(config, options);
+    } catch (ServiceLifecycleException e) {
+      e.printStackTrace(); // I18N not required.
+    }
+
+    Service service;
+    Param param;
+    Topology topology = new Topology();
+    topology.setName( "test-cluster" );
+
+    service = new Service();
+    service.setRole( "HIVE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hive-host:50001/" } ) );
+    param = new Param();
+    param.setName( "replayBufferSize" );
+    param.setValue( "17" );
+    service.addParam( param );
+    topology.addService( service );
+
+    service = new Service();
+    service.setRole( "WEBHBASE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hbase-host:50002/" } ) );
+    param = new Param();
+    param.setName( "replayBufferSize" );
+    param.setValue( "33" );
+    service.addParam( param );
+    topology.addService( service );
+
+    service = new Service();
+    service.setRole( "OOZIE" );
+    service.setUrls( Arrays.asList( new String[]{ "http://hbase-host:50003/" } ) );
+    param = new Param();
+    param.setName( "replayBufferSize" );
+    param.setValue( "65" );
+    service.addParam( param );
+    topology.addService( service );
+
+    WebArchive war = DeploymentFactory.createDeployment( config, topology );
+    Document doc = parse( war.get( "WEB-INF/gateway.xml" ).getAsset().openStream() );
+//    dump( doc );
+
+    Node resourceNode, filterNode, paramNode;
+    String value;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='HIVE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "17" ) ) ;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='WEBHBASE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "33" ) ) ;
+
+    resourceNode = node( doc, "gateway/resource[role/text()='OOZIE']" );
+    assertThat( resourceNode, is(not(nullValue())));
+    filterNode = node( resourceNode, "filter[role/text()='dispatch']" );
+    assertThat( filterNode, is(not(nullValue())));
+    paramNode = node( filterNode, "param[name/text()='replayBufferSize']" );
+    value = value( paramNode, "value/text()" );
+    assertThat( value, is( "65" ) ) ;
+
+    FileUtils.deleteQuietly( deployDir );
   }
 
   private Document parse( InputStream stream ) throws IOException, SAXException, ParserConfigurationException {
@@ -286,14 +543,41 @@ public class DeploymentFactoryFuncTest {
     return builder.parse( source );
   }
 
-//  private void dump( Document document ) throws TransformerException {
-//    Transformer transformer = TransformerFactory.newInstance().newTransformer();
-//    transformer.setOutputProperty( OutputKeys.INDENT, "yes" );
-//    StreamResult result = new StreamResult( new StringWriter() );
-//    DOMSource source = new DOMSource( document );
-//    transformer.transform( source, result );
-//    String xmlString = result.getWriter().toString();
-//    System.out.println( xmlString );
-//  }
+  private void addStacksDir(GatewayConfig config, File targetDir) {
+    File stacksDir = new File( config.getGatewayServicesDir() );
+    stacksDir.mkdirs();
+    //TODO: [sumit] This is a hack for now, need to find a better way to locate the source resources for 'stacks' to be tested
+    String pathToStacksSource = "gateway-service-definitions/src/main/resources/services";
+    File stacksSourceDir = new File( targetDir.getParent(), pathToStacksSource);
+    if (!stacksSourceDir.exists()) {
+      stacksSourceDir = new File( targetDir.getParentFile().getParent(), pathToStacksSource);
+    }
+    if (stacksSourceDir.exists()) {
+      try {
+        FileUtils.copyDirectoryToDirectory(stacksSourceDir, stacksDir);
+      } catch ( IOException e) {
+        fail(e.getMessage());
+      }
+    }
+
+  }
+
+  private void dump( Document document ) throws TransformerException {
+    Transformer transformer = TransformerFactory.newInstance().newTransformer();
+    transformer.setOutputProperty( OutputKeys.INDENT, "yes" );
+    StreamResult result = new StreamResult( new StringWriter() );
+    DOMSource source = new DOMSource( document );
+    transformer.transform( source, result );
+    String xmlString = result.getWriter().toString();
+    System.out.println( xmlString );
+  }
+
+  private Node node( Node scope, String expression ) throws XPathExpressionException {
+    return (Node)XPathFactory.newInstance().newXPath().compile( expression ).evaluate( scope, XPathConstants.NODE );
+  }
+
+  private String value( Node scope, String expression ) throws XPathExpressionException {
+    return XPathFactory.newInstance().newXPath().compile( expression ).evaluate( scope );
+  }
 
 }

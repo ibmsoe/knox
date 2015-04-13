@@ -48,4 +48,11 @@ public interface SpiGatewayMessages {
   
   @Message( level = MessageLevel.ERROR, text = "Failed Knox->Hadoop SPNegotiation authentication for URL: {0}" )
   void failedSPNegoAuthn(String uri);
+
+  @Message( level = MessageLevel.WARN, text = "Error occurred when closing HTTP client : {0}" )
+  void errorClosingHttpClient(@StackTrace(level=MessageLevel.WARN) Exception e);
+
+  @Message( level = MessageLevel.WARN, text = "Skipping unencodable parameter {0}={1}, {2}: {3}" )
+  void skippingUnencodableParameter( String name, String value, String encoding, @StackTrace( level = MessageLevel.DEBUG ) Exception e );
+
 }

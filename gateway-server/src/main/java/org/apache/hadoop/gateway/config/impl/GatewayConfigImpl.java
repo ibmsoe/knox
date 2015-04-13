@@ -28,6 +28,8 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -73,6 +75,8 @@ public class GatewayConfigImpl extends Configuration implements GatewayConfig {
 
   private static final String GATEWAY_CONFIG_FILE_PREFIX = "gateway";
 
+  private static final String DEFAULT_STACKS_SERVICES_DIR = "services";
+
   public static final String[] GATEWAY_CONFIG_FILENAMES = {
       GATEWAY_CONFIG_DIR_PREFIX + "/" + GATEWAY_CONFIG_FILE_PREFIX + "-default.xml",
       GATEWAY_CONFIG_DIR_PREFIX + "/" + GATEWAY_CONFIG_FILE_PREFIX + "-site.xml"
@@ -96,14 +100,31 @@ public class GatewayConfigImpl extends Configuration implements GatewayConfig {
   public static final String HTTP_PORT = GATEWAY_CONFIG_FILE_PREFIX + ".port";
   public static final String HTTP_PATH = GATEWAY_CONFIG_FILE_PREFIX + ".path";
   public static final String DEPLOYMENT_DIR = GATEWAY_CONFIG_FILE_PREFIX + ".deployment.dir";
+  public static final String SECURITY_DIR = GATEWAY_CONFIG_FILE_PREFIX + ".security.dir";
+  public static final String DATA_DIR = GATEWAY_CONFIG_FILE_PREFIX + ".data.dir";
+  public static final String STACKS_SERVICES_DIR = GATEWAY_CONFIG_FILE_PREFIX + ".services.dir";
   public static final String HADOOP_CONF_DIR = GATEWAY_CONFIG_FILE_PREFIX + ".hadoop.conf.dir";
-//  public static final String SHIRO_CONFIG_FILE = GATEWAY_CONFIG_FILE_PREFIX + ".shiro.config.file";
+  public static final String FRONTEND_URL = GATEWAY_CONFIG_FILE_PREFIX + ".frontend.url";
+  private static final String TRUST_ALL_CERTS = GATEWAY_CONFIG_FILE_PREFIX + ".trust.all.certs";
+  private static final String CLIENT_AUTH_NEEDED = GATEWAY_CONFIG_FILE_PREFIX + ".client.auth.needed";
+  private static final String TRUSTSTORE_PATH = GATEWAY_CONFIG_FILE_PREFIX + ".truststore.path";
+  private static final String TRUSTSTORE_TYPE = GATEWAY_CONFIG_FILE_PREFIX + ".truststore.type";
+  private static final String KEYSTORE_TYPE = GATEWAY_CONFIG_FILE_PREFIX + ".keystore.type";
 
+  // These config property names are not inline with the convention of using the
+  // GATEWAY_CONFIG_FILE_PREFIX as is done by those above. These are left for
+  // backward compatibility. 
+  // LET'S NOT CONTINUE THIS PATTERN BUT LEAVE THEM FOR NOW.
+  private static final String SSL_ENABLED = "ssl.enabled";
+  private static final String SSL_EXCLUDE_PROTOCOLS = "ssl.exclude.protocols";
+  // END BACKWARD COMPATIBLE BLOCK
+  
   public static final String DEFAULT_HTTP_PORT = "8888";
   public static final String DEFAULT_HTTP_PATH = "gateway";
   public static final String DEFAULT_DEPLOYMENT_DIR = "deployments";
-  private static final String SSL_ENABLED = "ssl.enabled";
-//  public static final String DEFAULT_SHIRO_CONFIG_FILE = "shiro.ini";
+  public static final String DEFAULT_SECURITY_DIR = "security";
+  public static final String DEFAULT_DATA_DIR = "data";
+  
 
   public GatewayConfigImpl() {
     init();
@@ -144,8 +165,20 @@ public class GatewayConfigImpl extends Configuration implements GatewayConfig {
 
   @Override
   public String getGatewayDataDir() {
-    String value = getVar( GATEWAY_DATA_HOME_VAR, getGatewayHomeDir() + File.separator + "data" );
-    return value;
+    String systemValue =
+        System.getProperty(GATEWAY_DATA_HOME_VAR, System.getenv(GATEWAY_DATA_HOME_VAR));
+    String dataDir = null;
+    if (systemValue != null) {
+      dataDir = systemValue;
+    } else {
+      dataDir = get(DATA_DIR, getGatewayHomeDir() + File.separator + DEFAULT_DATA_DIR);
+    }
+    return dataDir;
+  }
+
+  @Override
+  public String getGatewayServicesDir() {
+    return get(STACKS_SERVICES_DIR, getGatewayDataDir() + File.separator + DEFAULT_STACKS_SERVICES_DIR);
   }
 
   @Override
@@ -271,12 +304,12 @@ public class GatewayConfigImpl extends Configuration implements GatewayConfig {
 
   @Override
   public String getGatewayDeploymentDir() {
-    return getGatewayDataDir() + File.separator + "deployments";
+    return get(DEPLOYMENT_DIR, getGatewayDataDir() + File.separator + DEFAULT_DEPLOYMENT_DIR);
   }
 
   @Override
   public String getGatewaySecurityDir() {
-    return getGatewayDataDir() + File.separator + "security";
+    return get(SECURITY_DIR, getGatewayDataDir() + File.separator + DEFAULT_SECURITY_DIR);
   }
 
   @Override
@@ -332,5 +365,68 @@ public class GatewayConfigImpl extends Configuration implements GatewayConfig {
   public String getDefaultAppRedirectPath() {
     return "/" + getGatewayPath() + "/" + getDefaultTopologyName();
   }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getFrontendUrl()
+   */
+  @Override
+  public String getFrontendUrl() {
+    String url = get( FRONTEND_URL, null );
+    return url;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getExcludedSSLProtocols()
+   */
+  @Override
+  public List<String> getExcludedSSLProtocols() {
+    List<String> protocols = null;
+    String value = get(SSL_EXCLUDE_PROTOCOLS);
+    if (!"none".equals(value)) {
+      protocols = Arrays.asList(value.split("\\s*,\\s*"));
+    }
+    return protocols;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#isClientAuthNeeded()
+   */
+  @Override
+  public boolean isClientAuthNeeded() {
+    String clientAuthNeeded = get( CLIENT_AUTH_NEEDED, "false" );
+    return "true".equals(clientAuthNeeded);
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTruststorePath()
+   */
+  @Override
+  public String getTruststorePath() {
+    return get( TRUSTSTORE_PATH, null);
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTrustAllCerts()
+   */
+  @Override
+  public boolean getTrustAllCerts() {
+    String trustAllCerts = get( TRUST_ALL_CERTS, "false" );
+    return "true".equals(trustAllCerts);
+  }
   
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTruststorePath()
+   */
+  @Override
+  public String getTruststoreType() {
+    return get( TRUSTSTORE_TYPE, "JKS");
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTruststorePath()
+   */
+  @Override
+  public String getKeystoreType() {
+    return get( KEYSTORE_TYPE, "JKS");
+  }
 }

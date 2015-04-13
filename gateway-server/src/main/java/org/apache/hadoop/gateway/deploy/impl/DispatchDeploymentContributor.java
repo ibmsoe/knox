@@ -22,18 +22,22 @@ import org.apache.hadoop.gateway.deploy.ProviderDeploymentContributorBase;
 import org.apache.hadoop.gateway.descriptor.FilterDescriptor;
 import org.apache.hadoop.gateway.descriptor.FilterParamDescriptor;
 import org.apache.hadoop.gateway.descriptor.ResourceDescriptor;
-import org.apache.hadoop.gateway.dispatch.HttpClientDispatch;
+import org.apache.hadoop.gateway.dispatch.GatewayDispatchFilter;
+import org.apache.hadoop.gateway.dispatch.DefaultDispatch;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Service;
 
 import java.util.List;
+import java.util.Map;
 
 public class DispatchDeploymentContributor extends ProviderDeploymentContributorBase {
   
   private static final String REPLAY_BUFFER_SIZE_PARAM = "replayBufferSize";
-  
+
+  private static final String DISPATCH_IMPL_PARAM = "dispatch-impl";
+
   // Default global replay buffer size in KB
-  public static final String DEFAULT_REPLAY_BUFFER_SIZE = "4";
+  public static final String DEFAULT_REPLAY_BUFFER_SIZE = "8";
 
   @Override
   public String getRole() {
@@ -47,17 +51,21 @@ public class DispatchDeploymentContributor extends ProviderDeploymentContributor
 
   @Override
   public void contributeFilter( DeploymentContext context, Provider provider, Service service, ResourceDescriptor resource, List<FilterParamDescriptor> params ) {
-    String replayBufferSize = DEFAULT_REPLAY_BUFFER_SIZE;
-    if (params != null) {
-      for (FilterParamDescriptor paramDescriptor : params) {
-        if (REPLAY_BUFFER_SIZE_PARAM.equals( paramDescriptor.name() )) {
-          replayBufferSize = paramDescriptor.value();
-          break;
+    FilterDescriptor filter = resource.addFilter().name( getName() ).role( getRole() ).impl( GatewayDispatchFilter.class );
+    filter.param().name(DISPATCH_IMPL_PARAM).value(DefaultDispatch.class.getName());
+    FilterParamDescriptor filterParam = filter.param().name( REPLAY_BUFFER_SIZE_PARAM ).value( DEFAULT_REPLAY_BUFFER_SIZE );
+    for ( Map.Entry<String,String> serviceParam : service.getParams().entrySet() ) {
+      if ( REPLAY_BUFFER_SIZE_PARAM.equals( serviceParam.getKey() ) ) {
+        filterParam.value( serviceParam.getValue() );
+      }
+    }
+    if ( params != null ) {
+      for ( FilterParamDescriptor customParam : params ) {
+        if ( REPLAY_BUFFER_SIZE_PARAM.equals( customParam.name() ) ) {
+          filterParam.value( customParam.value() );
         }
       }
     }
-    FilterDescriptor filter = resource.addFilter().name( getName() ).role( getRole() ).impl( HttpClientDispatch.class );
-    filter.param().name("replayBufferSize").value(replayBufferSize);
     if( context.getGatewayConfig().isHadoopKerberosSecured() ) {
       filter.param().name("kerberos").value("true");
     }

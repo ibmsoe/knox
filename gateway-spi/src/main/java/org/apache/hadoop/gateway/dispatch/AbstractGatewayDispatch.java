@@ -17,13 +17,11 @@
  */
 package org.apache.hadoop.gateway.dispatch;
 
-import org.apache.hadoop.gateway.filter.AbstractGatewayFilter;
 import org.apache.hadoop.gateway.filter.GatewayResponse;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -32,54 +30,15 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public abstract class AbstractGatewayDispatch extends AbstractGatewayFilter implements Dispatch {
+public abstract class AbstractGatewayDispatch implements Dispatch {
 
-  private static Map<String,Adapter> METHOD_ADAPTERS = createMethodAdapters();
   private static int STREAM_COPY_BUFFER_SIZE = 4096;
-  private static final List<String> EXCLUDE_HEADERS = Arrays.asList( "Host", "Authorization", "Content-Length" );
+  private static final List<String> EXCLUDE_HEADERS = Arrays.asList( "Host", "Authorization", "Content-Length", "Transfer-Encoding" );
 
-  private static Map<String,Adapter> createMethodAdapters() {
-    Map<String,Adapter> map = new HashMap<String,Adapter>();
-    map.put( "GET", new GetAdapter() );
-    map.put( "POST", new PostAdapter() );
-    map.put( "PUT", new PutAdapter() );
-    map.put( "DELETE", new DeleteAdapter() );
-    map.put( "OPTIONS", new OptionsAdapter() );
-    return Collections.unmodifiableMap( map );
-  }
-
-  @Override
-  protected void doFilter( HttpServletRequest request, HttpServletResponse response, FilterChain chain )
-      throws IOException, ServletException {
-    String method = request.getMethod().toUpperCase();
-    Adapter adapter = METHOD_ADAPTERS.get( method );
-    if( adapter != null ) {
-      try {
-        adapter.doMethod( this, request, response );
-      } catch( URISyntaxException e ) {
-        throw new ServletException( e );
-      }
-    } else {
-      response.sendError( HttpServletResponse.SC_METHOD_NOT_ALLOWED );
-    }
-  }
-
-  protected static URI getDispatchUrl( HttpServletRequest request ) {
-    StringBuffer str = request.getRequestURL();
-    String query = request.getQueryString();
-    if( query != null ) {
-      str.append( '?' );
-      str.append( query );
-    }
-    URI url = URI.create( str.toString() );
-    return url;
-  }
+  protected  HttpClient client;
 
   protected void writeResponse( HttpServletRequest request, HttpServletResponse response, InputStream stream )
       throws IOException {
@@ -96,6 +55,16 @@ public abstract class AbstractGatewayDispatch extends AbstractGatewayFilter impl
         output.close();
       }
 //    }
+  }
+
+  @Override
+  public HttpClient getHttpClient() {
+    return client;
+  }
+
+  @Override
+  public void setHttpClient(HttpClient client) {
+    this.client = client;
   }
 
   public void doGet( URI url, HttpServletRequest request, HttpServletResponse response )
@@ -122,56 +91,16 @@ public abstract class AbstractGatewayDispatch extends AbstractGatewayFilter impl
       throws IOException, URISyntaxException {
     response.sendError( HttpServletResponse.SC_METHOD_NOT_ALLOWED );
   }
-
-  private interface Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException;
-  }
-
-  private static class GetAdapter implements Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException {
-      dispatch.doGet( getDispatchUrl( request ), request, response );
-    }
-  }
-
-  private static class PostAdapter implements Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException {
-      dispatch.doPost( getDispatchUrl( request ), request, response );
-    }
-  }
-
-  private static class PutAdapter implements Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException {
-      dispatch.doPut( getDispatchUrl( request ), request, response );
-    }
-  }
-
-  private static class DeleteAdapter implements Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException {
-      dispatch.doDelete( getDispatchUrl( request ), request, response );
-    }
-  }
-
-  private static class OptionsAdapter implements Adapter {
-    public void doMethod( Dispatch dispatch, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException, URISyntaxException {
-      dispatch.doOptions( getDispatchUrl( request ), request, response );
-    }
-  }
   
   public static void copyRequestHeaderFields(HttpUriRequest outboundRequest,
       HttpServletRequest inboundRequest) {
     Enumeration<String> headerNames = inboundRequest.getHeaderNames();
     while( headerNames.hasMoreElements() ) {
-      String name = (String) headerNames.nextElement();
+      String name = headerNames.nextElement();
       if ( !outboundRequest.containsHeader( name )
           && !EXCLUDE_HEADERS.contains( name ) ) {
-        String vaule = inboundRequest.getHeader( name );
-        outboundRequest.addHeader( name, vaule );
+        String value = inboundRequest.getHeader( name );
+        outboundRequest.addHeader( name, value );
       }
     }
   }

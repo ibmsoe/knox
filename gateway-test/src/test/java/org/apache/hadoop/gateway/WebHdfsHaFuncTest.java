@@ -27,6 +27,7 @@ import org.apache.http.HttpStatus;
 import org.eclipse.jetty.util.log.Log;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -131,7 +132,7 @@ public class WebHdfsHaFuncTest {
             .addTag("provider")
             .addTag("role").addText("identity-assertion")
             .addTag("enabled").addText("true")
-            .addTag("name").addText("Pseudo").gotoParent()
+            .addTag("name").addText("Default").gotoParent()
             .addTag("provider")
             .addTag("role").addText("authorization")
             .addTag("enabled").addText("true")
@@ -182,6 +183,7 @@ public class WebHdfsHaFuncTest {
    }
 
    @Test
+   @Ignore( "KNOX-446" )
    public void testFailoverListOperation() throws Exception {
       String username = "hdfs";
       String password = "hdfs-password";
@@ -230,6 +232,7 @@ public class WebHdfsHaFuncTest {
 
 
    @Test
+   @Ignore( "KNOX-446" )
    public void testServerInStandby() throws IOException {
       String username = "hdfs";
       String password = "hdfs-password";
@@ -354,6 +357,41 @@ public class WebHdfsHaFuncTest {
             .statusCode(HttpStatus.SC_OK)
             .content("boolean", is(true))
             .when().post(driver.getUrl("WEBHDFS") + "/v1/user/hdfs/foo.txt");
+      masterServer.isEmpty();
+   }
+
+   @Test
+   public void testServerInSafeModeRetriableException() throws IOException {
+      String username = "hdfs";
+      String password = "hdfs-password";
+      //master is in safe mode
+      masterServer.expect()
+            .method("POST")
+            .pathInfo("/webhdfs/v1/user/hdfs/new")
+            .queryParam("op", "MKDIRS")
+            .queryParam("user.name", username)
+            .respond()
+            .status(HttpStatus.SC_FORBIDDEN)
+            .content(driver.getResourceBytes("webhdfs-mkdirs-safemode.json"))
+            .contentType("application/json");
+      masterServer.expect()
+            .method("POST")
+            .pathInfo("/webhdfs/v1/user/hdfs/new")
+            .queryParam("op", "MKDIRS")
+            .queryParam("user.name", username)
+            .respond()
+            .status(HttpStatus.SC_OK)
+            .content(driver.getResourceBytes("webhdfs-rename-safemode-off.json"))
+            .contentType("application/json");
+      given()
+            .auth().preemptive().basic(username, password)
+            .header("X-XSRF-Header", "jksdhfkhdsf")
+            .queryParam("op", "MKDIRS")
+            .expect()
+            .log().ifError()
+            .statusCode(HttpStatus.SC_OK)
+            .content("boolean", is(true))
+            .when().post(driver.getUrl("WEBHDFS") + "/v1/user/hdfs/new");
       masterServer.isEmpty();
    }
 

@@ -19,7 +19,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.apache.hadoop</groupId>
+    <parent>
+        <groupId>org.apache</groupId>
+        <artifactId>apache</artifactId>
+        <version>14</version>
+    </parent>
+    <groupId>org.apache.knox</groupId>
     <artifactId>gateway</artifactId>
     <version>0.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -31,6 +36,7 @@
     <modules>
         <module>gateway-test-utils</module>
         <module>gateway-util-common</module>
+        <module>gateway-util-configinjector</module>
         <module>gateway-util-launcher</module>
         <module>gateway-util-urltemplate</module>
         <module>gateway-test-ldap</module>
@@ -52,6 +58,9 @@
         <module>gateway-provider-security-hadoopauth</module>
         <module>gateway-provider-security-shiro</module>
         <module>gateway-provider-security-authz-acls</module>
+        <module>gateway-provider-identity-assertion-common</module>
+        <module>gateway-provider-identity-assertion-concat</module>
+        <module>gateway-provider-security-picketlink</module>
         <module>gateway-provider-identity-assertion-pseudo</module>
         <module>gateway-provider-jersey</module>
         <module>gateway-provider-ha</module>
@@ -59,11 +68,11 @@
         <module>gateway-service-as</module>
         <module>gateway-service-hbase</module>
         <module>gateway-service-hive</module>
+        <module>gateway-service-knoxsso</module>
         <module>gateway-service-webhdfs</module>
-        <module>gateway-service-oozie</module>
-        <module>gateway-service-webhcat</module>
         <module>gateway-service-tgs</module>
-        <module>gateway-service-yarn-rm</module>
+        <module>gateway-service-storm</module>
+        <module>gateway-service-definitions</module>
         <module>gateway-shell</module>
         <module>gateway-shell-launcher</module>
         <module>knox-cli-launcher</module>
@@ -77,13 +86,13 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <internal.maven.repo>file:///tmp/knoxtemprepo</internal.maven.repo>
         <repo.id>internal.repo</repo.id>
+        <internal.maven.repo>https://repository.apache.org/service/local/staging/deploy/maven2</internal.maven.repo>
         <gateway-name>Apache Knox</gateway-name>
         <gateway-project>knox</gateway-project>
         <gateway-artifact>knox</gateway-artifact>
         <gateway-version>0.6.0-SNAPSHOT</gateway-version>
-        <gateway-group>org.apache.hadoop</gateway-group>
+        <gateway-group>org.apache.knox</gateway-group>
         <hadoop-version>2.2.0</hadoop-version>
         <jetty-version>8.1.14.v20131031</jetty-version>
     </properties>
@@ -111,6 +120,11 @@
             <name>Internal Repository</name>
             <url>${internal.maven.repo}</url>
         </repository>
+        <snapshotRepository>
+            <id>${repo.id}</id>
+            <name>Internal Repository</name>
+            <url>${internal.maven.repo}</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <profiles>
@@ -341,6 +355,11 @@
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-util-configinjector</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
                 <artifactId>gateway-util-launcher</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
@@ -381,6 +400,11 @@
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-provider-security-picketlink</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
                 <artifactId>gateway-provider-security-preauth</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
@@ -397,6 +421,16 @@
             <dependency>
                 <groupId>${gateway-group}</groupId>
                 <artifactId>gateway-provider-security-authz-acls</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-provider-identity-assertion-common</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-provider-identity-assertion-concat</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
             <dependency>
@@ -451,6 +485,11 @@
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-service-knoxsso</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
                 <artifactId>gateway-service-admin</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
@@ -476,17 +515,12 @@
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
-                <artifactId>gateway-service-webhcat</artifactId>
+                <artifactId>gateway-service-storm</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
-                <artifactId>gateway-service-yarn-rm</artifactId>
-                <version>${gateway-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${gateway-group}</groupId>
-                <artifactId>gateway-service-oozie</artifactId>
+                <artifactId>gateway-service-definitions</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
             <dependency>
@@ -530,6 +564,16 @@
                 <version>${gateway-version}</version>
             </dependency>
 
+        <dependency>
+            <groupId>org.picketlink</groupId>
+            <artifactId>picketlink-federation</artifactId>
+            <version>2.7.0.CR3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.2.0.Final</version>
+        </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.containers</groupId>
                 <artifactId>jersey-container-servlet</artifactId>
@@ -540,7 +584,18 @@
                 <artifactId>jersey-server</artifactId>
                 <version>2.6</version>
             </dependency>
-
+            <dependency>
+              <groupId>com.nimbusds</groupId>
+              <artifactId>nimbus-jose-jwt</artifactId>
+              <version>3.9</version>
+              <scope>compile</scope>
+              <exclusions>
+                <exclusion>
+                  <groupId>org.bouncycastle</groupId>
+                  <artifactId>bcprov-jdk15on</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-server</artifactId>
@@ -598,7 +653,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
-                <version>4.2.5</version>
+                <version>4.3.6</version>
             </dependency>
 
             <!--
@@ -808,7 +863,16 @@
                 <artifactId>commons-net</artifactId>
                 <version>1.4.1</version>
             </dependency>
-
+            <dependency>
+                <groupId>commons-collections</groupId>
+                <artifactId>commons-collections</artifactId>
+                <version>3.2.1</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.9.2</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-digester3</artifactId>
@@ -872,6 +936,12 @@
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-web</artifactId>
+                <version>1.2.3</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.shiro</groupId>
+                <artifactId>shiro-ehcache</artifactId>
                 <version>1.2.3</version>
             </dependency>
 

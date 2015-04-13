@@ -17,20 +17,20 @@
  */
 package org.apache.hadoop.gateway.deploy;
 
-import org.apache.hadoop.gateway.GatewayMessages;
 import org.apache.hadoop.gateway.GatewayForwardingServlet;
-import org.apache.hadoop.gateway.GatewayResources;
+import org.apache.hadoop.gateway.GatewayMessages;
 import org.apache.hadoop.gateway.GatewayServlet;
 import org.apache.hadoop.gateway.config.GatewayConfig;
 import org.apache.hadoop.gateway.descriptor.GatewayDescriptor;
 import org.apache.hadoop.gateway.descriptor.GatewayDescriptorFactory;
 import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
-import org.apache.hadoop.gateway.i18n.resources.ResourcesFactory;
 import org.apache.hadoop.gateway.services.GatewayServices;
 import org.apache.hadoop.gateway.services.registry.ServiceRegistry;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Service;
 import org.apache.hadoop.gateway.topology.Topology;
+import org.apache.hadoop.gateway.topology.Version;
+import org.apache.hadoop.gateway.util.ServiceDefinitionsLoader;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.Asset;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
@@ -40,26 +40,27 @@ import org.jboss.shrinkwrap.descriptor.api.webapp30.WebAppDescriptor;
 import org.jboss.shrinkwrap.descriptor.api.webcommon30.ServletType;
 
 import java.beans.Statement;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.TreeMap;
 
 public abstract class DeploymentFactory {
 
   private static final String DEFAULT_APP_REDIRECT_CONTEXT_PATH = "redirectTo";
-  private static GatewayResources res = ResourcesFactory.get( GatewayResources.class );
   private static GatewayMessages log = MessagesFactory.get( GatewayMessages.class );
   private static GatewayServices gatewayServices = null;
 
-  //private static Set<ServiceDeploymentContributor> SERVICE_CONTRIBUTORS;
-  private static Map<String,Map<String,ServiceDeploymentContributor>> SERVICE_CONTRIBUTOR_MAP;
+  private static Map<String,Map<String,Map<Version, ServiceDeploymentContributor>>> SERVICE_CONTRIBUTOR_MAP;
   static {
     loadServiceContributors();
   }
@@ -69,13 +70,20 @@ public abstract class DeploymentFactory {
   static {
     loadProviderContributors();
   }
-  
+
   public static void setGatewayServices(GatewayServices services) {
     DeploymentFactory.gatewayServices = services;
   }
 
   public static WebArchive createDeployment( GatewayConfig config, Topology topology ) {
     DeploymentContext context = null;
+     //TODO move the loading of service defs
+    String stacks = config.getGatewayServicesDir();
+    log.usingServicesDirectory(stacks);
+    File stacksDir = new File(stacks);
+    Set<ServiceDeploymentContributor> deploymentContributors = ServiceDefinitionsLoader.loadServiceDefinitions(stacksDir);
+    addServiceDeploymentContributors(deploymentContributors.iterator());
+
     Map<String,List<ProviderDeploymentContributor>> providers = selectContextProviders( topology );
     Map<String,List<ServiceDeploymentContributor>> services = selectContextServices( topology );
     context = createDeploymentContext( config, topology.getName(), topology, providers, services );
@@ -128,7 +136,7 @@ public abstract class DeploymentFactory {
   // Scan through all of the loaded providers.  For each that doesn't have an existing provider in the role
   // list add it.
   private static Map<String,List<ProviderDeploymentContributor>> selectContextProviders( Topology topology ) {
-    Map<String,List<ProviderDeploymentContributor>> providers = new HashMap<String,List<ProviderDeploymentContributor>>();
+    Map<String,List<ProviderDeploymentContributor>> providers = new LinkedHashMap<String, List<ProviderDeploymentContributor>>();
     collectTopologyProviders( topology, providers );
     collectDefaultProviders( providers );
     return providers;
@@ -186,7 +194,7 @@ public abstract class DeploymentFactory {
         = new HashMap<String,List<ServiceDeploymentContributor>>();
     for( Service service : topology.getServices() ) {
       String role = service.getRole();
-      ServiceDeploymentContributor contributor = getServiceContributor( role, service.getName() );
+      ServiceDeploymentContributor contributor = getServiceContributor( role, service.getName(), service.getVersion() );
       if( contributor != null ) {
         List<ServiceDeploymentContributor> list = defaults.get( role );
         if( list == null ) {
@@ -218,9 +226,7 @@ public abstract class DeploymentFactory {
     for( String role : providers.keySet() ) {
       for( ProviderDeploymentContributor contributor : providers.get( role ) ) {
         try {
-          if (gatewayServices != null) {
-            injectServices(contributor);
-          }
+          injectServices(contributor);
           contributor.initializeContribution( context );
         } catch( Exception e ) {
           log.failedToInitializeContribution( e );
@@ -231,9 +237,7 @@ public abstract class DeploymentFactory {
     for( String role : services.keySet() ) {
       for( ServiceDeploymentContributor contributor : services.get( role ) ) {
         try {
-          if (services != null) {
-            injectServices(contributor);
-          }
+          injectServices(contributor);
           contributor.initializeContribution( context );
         } catch( Exception e ) {
           log.failedToInitializeContribution( e );
@@ -242,12 +246,12 @@ public abstract class DeploymentFactory {
       }
     }
   }
-  
+
   private static void injectServices(Object contributor) {
     if (gatewayServices != null) {
       Statement stmt = null;
       for(String serviceName : gatewayServices.getServiceNames()) {
-        
+
         try {
           // TODO: this is just a temporary injection solution
           // TODO: test for the existence of the setter before attempting it
@@ -283,12 +287,12 @@ public abstract class DeploymentFactory {
       }
     }
     for( Service service : topology.getServices() ) {
-      ServiceDeploymentContributor contributor = getServiceContributor( service.getRole(), null );
+      ServiceDeploymentContributor contributor = getServiceContributor( service.getRole(), service.getName(), service.getVersion() );
       if( contributor != null ) {
         try {
           contributor.contributeService( context, service );
           if (gatewayServices != null) {
-            ServiceRegistry sr = (ServiceRegistry) gatewayServices.getService(GatewayServices.SERVICE_REGISTRY_SERVICE);
+            ServiceRegistry sr = gatewayServices.getService(GatewayServices.SERVICE_REGISTRY_SERVICE);
             if (sr != null) {
               String regCode = sr.getRegistrationCode(topology.getName());
               sr.registerService(regCode, topology.getName(), service.getRole(), service.getUrls() );
@@ -316,14 +320,22 @@ public abstract class DeploymentFactory {
     return contributor;
   }
 
-  public static ServiceDeploymentContributor getServiceContributor( String role, String name ) {
+  public static ServiceDeploymentContributor getServiceContributor( String role, String name, Version version ) {
     ServiceDeploymentContributor contributor = null;
-    Map<String,ServiceDeploymentContributor> nameMap = SERVICE_CONTRIBUTOR_MAP.get( role );
-    if( nameMap != null ) {
-      if( name == null ) {
-        contributor = nameMap.values().iterator().next();
-      } else if ( !nameMap.isEmpty() ) {
-        contributor = nameMap.get( name );
+    Map<String,Map<Version, ServiceDeploymentContributor>> nameMap = SERVICE_CONTRIBUTOR_MAP.get( role );
+    if( nameMap != null && !nameMap.isEmpty()) {
+      Map<Version, ServiceDeploymentContributor> versionMap = null;
+      if ( name == null ) {
+        versionMap = nameMap.values().iterator().next();
+      } else {
+        versionMap = nameMap.get( name );
+      }
+      if ( versionMap != null && !versionMap.isEmpty()) {
+        if( version == null ) {
+          contributor = ((TreeMap<Version, ServiceDeploymentContributor>) versionMap).firstEntry().getValue();
+        } else {
+          contributor = versionMap.get( version );
+        }
       }
     }
     return contributor;
@@ -394,38 +406,45 @@ public abstract class DeploymentFactory {
       }
     }
     return null;
-  }  
-  
-  private static void loadServiceContributors() {
-    Set<ServiceDeploymentContributor> set = new HashSet<ServiceDeploymentContributor>();
-    Map<String,Map<String,ServiceDeploymentContributor>> roleMap
-        = new HashMap<String,Map<String,ServiceDeploymentContributor>>();
-
-    ServiceLoader<ServiceDeploymentContributor> loader = ServiceLoader.load( ServiceDeploymentContributor.class );
-    Iterator<ServiceDeploymentContributor> contributors = loader.iterator();
-    while( contributors.hasNext() ) {
-      ServiceDeploymentContributor contributor = contributors.next();
-      if( contributor.getName() == null ) {
-        log.ignoringServiceContributorWithMissingName( contributor.getClass().getName() );
-        continue;
-      }
-      if( contributor.getRole() == null ) {
-        log.ignoringServiceContributorWithMissingRole( contributor.getClass().getName() );
-        continue;
-      }
-      set.add( contributor );
-      Map nameMap = roleMap.get( contributor.getRole() );
-      if( nameMap == null ) {
-        nameMap = new HashMap<String,ServiceDeploymentContributor>();
-        roleMap.put( contributor.getRole(), nameMap );
-      }
-      nameMap.put( contributor.getName(), contributor );
-    }
-    //SERVICE_CONTRIBUTORS = set;
-    SERVICE_CONTRIBUTOR_MAP = roleMap;
   }
 
-  private static void loadProviderContributors() {
+  private static void loadServiceContributors() {
+    SERVICE_CONTRIBUTOR_MAP = new HashMap<String, Map<String, Map<Version, ServiceDeploymentContributor>>>();
+    ServiceLoader<ServiceDeploymentContributor> loader = ServiceLoader.load( ServiceDeploymentContributor.class );
+    Iterator<ServiceDeploymentContributor> contributors = loader.iterator();
+    addServiceDeploymentContributors(contributors);
+  }
+
+   private static void addServiceDeploymentContributors(Iterator<ServiceDeploymentContributor> contributors) {
+      while( contributors.hasNext() ) {
+        ServiceDeploymentContributor contributor = contributors.next();
+        if( contributor.getName() == null ) {
+          log.ignoringServiceContributorWithMissingName( contributor.getClass().getName() );
+          continue;
+        }
+        if( contributor.getRole() == null ) {
+          log.ignoringServiceContributorWithMissingRole( contributor.getClass().getName() );
+          continue;
+        }
+        if( contributor.getVersion() == null ) {
+          log.ignoringServiceContributorWithMissingVersion(contributor.getClass().getName());
+          continue;
+        }
+        Map<String,Map<Version, ServiceDeploymentContributor>> nameMap = SERVICE_CONTRIBUTOR_MAP.get( contributor.getRole() );
+        if( nameMap == null ) {
+          nameMap = new HashMap<String,Map<Version, ServiceDeploymentContributor>>();
+          SERVICE_CONTRIBUTOR_MAP.put( contributor.getRole(), nameMap );
+        }
+        Map<Version, ServiceDeploymentContributor> versionMap = nameMap.get(contributor.getName());
+        if (versionMap == null) {
+          versionMap = new TreeMap<Version, ServiceDeploymentContributor>();
+          nameMap.put(contributor.getName(), versionMap);
+        }
+        versionMap.put( contributor.getVersion(), contributor );
+      }
+   }
+
+   private static void loadProviderContributors() {
     Set<ProviderDeploymentContributor> set = new HashSet<ProviderDeploymentContributor>();
     Map<String,Map<String,ProviderDeploymentContributor>> roleMap
         = new HashMap<String,Map<String,ProviderDeploymentContributor>>();
@@ -467,19 +486,4 @@ public abstract class DeploymentFactory {
     }
     return contributor;
   }
-
-  static ServiceDeploymentContributor getServiceContributor(
-      Map<String,List<ServiceDeploymentContributor>> services, String role, String name ) {
-    ServiceDeploymentContributor contributor = null;
-    if( name == null ) {
-      List<ServiceDeploymentContributor> list = services.get( role );
-      if( !list.isEmpty() ) {
-        contributor = list.get( 0 );
-      }
-    } else {
-      contributor = getServiceContributor( role, name );
-    }
-    return contributor;
-  }
-
 }

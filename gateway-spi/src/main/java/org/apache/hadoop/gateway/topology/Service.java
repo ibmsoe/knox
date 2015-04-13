@@ -27,6 +27,7 @@ public class Service {
 
   private String role;
   private String name;
+  private Version version;
   private Map<String, String> params = new LinkedHashMap<String, String>();
   private List<String> urls;
 
@@ -44,6 +45,14 @@ public class Service {
 
   public void setName( String name ) {
     this.name = name;
+  }
+
+  public Version getVersion() {
+    return version;
+  }
+
+  public void setVersion(Version version) {
+    this.version = version;
   }
 
   public List<String> getUrls() {
@@ -94,4 +103,24 @@ public class Service {
     params.put(param.getName(), param.getValue());
   }
 
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof Service)) {
+      return false;
+    }
+    Service that = (Service) object;
+    String thatName = that.getName();
+    if (thatName != null && !(thatName.equals(name))) {
+        return false;
+    }
+    String thatRole = that.getRole();
+    if (thatRole != null && !thatRole.equals(role)) {
+        return false;
+    }
+    Version thatVersion = that.getVersion();
+    if (thatVersion != null && !(thatVersion.equals(version))) {
+        return false;
+    }
+    return true;
+  }
 }

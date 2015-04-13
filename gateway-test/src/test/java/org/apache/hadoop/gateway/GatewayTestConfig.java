@@ -21,6 +21,8 @@ import org.apache.hadoop.gateway.config.GatewayConfig;
 
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GatewayTestConfig implements GatewayConfig {
 
@@ -33,6 +35,7 @@ public class GatewayTestConfig implements GatewayConfig {
   private String kerberosConfig = "/etc/knox/conf/krb5.conf";
   private boolean kerberosDebugEnabled = false;
   private String kerberosLoginConfig = "/etc/knox/conf/krb5JAASLogin.conf";
+  private String frontendUrl = null;
 
   public void setGatewayHomeDir( String gatewayHomeDir ) {
     this.gatewayHomeDir = gatewayHomeDir;
@@ -162,9 +165,78 @@ public class GatewayTestConfig implements GatewayConfig {
     // TODO Auto-generated method stub
     return "/gateway/sandbox";
   }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getFrontendUrl()
+   */
+  @Override
+  public String getFrontendUrl() { return frontendUrl; }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getExcludedSSLProtocols()
+   */
+  @Override
+  public List getExcludedSSLProtocols() {
+    List<String> protocols = new ArrayList<String>();
+    protocols.add("SSLv3");
+    return protocols;
+  }
+
+  public void setFrontendUrl( String frontendUrl ) {
+    this.frontendUrl = frontendUrl;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#isClientAuthNeeded()
+   */
+  @Override
+  public boolean isClientAuthNeeded() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTruststorePath()
+   */
+  @Override
+  public String getTruststorePath() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTrustAllCerts()
+   */
+  @Override
+  public boolean getTrustAllCerts() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getTruststoreType()
+   */
+  @Override
+  public String getTruststoreType() {
+    // TODO Auto-generated method stub
+    return null;
+  }
   
+  /* (non-Javadoc)
+   * @see org.apache.hadoop.gateway.config.GatewayConfig#getKeystoreType()
+   */
+  @Override
+  public String getKeystoreType() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 //  public void setKerberosLoginConfig(String kerberosLoginConfig) {
 //   this.kerberosLoginConfig = kerberosLoginConfig;
 //  }
-  
+
+   @Override
+   public String getGatewayServicesDir() {
+      return gatewayHomeDir + "/data/services";
+   }
 }

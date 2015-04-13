@@ -1,8 +1,121 @@
 ------------------------------------------------------------------------------
+Release Notes - Apache Knox - Version 0.6.0
+------------------------------------------------------------------------------
+** New Feature
+  * [KNOX-473] - Configurable front end URL for simplified load balancer configuration
+  * [KNOX-479] - Remove cacheManager configuration from template files
+  * [KNOX-480] - KnoxCLI needs to print usage when alias not provided
+  * [KNOX-494] - knox-env.sh script should print proper warning message , if JAVA is not set. (Andreina J via lmccay)
+  * [KNOX-493] - Data and sub data directory should be made configurable. (Andreina J via lmccay)
+
+** Improvement
+  * [KNOX-462] - Proper error message when root tag of topology file incorrect
+  * [KNOX-501] - Avoid NPE in case of passing invalid argument to KnoxCli.
+
+** Bug
+  * [KNOX-378] - Knox rewrites numbers in JSON to engineering notation
+
+
+------------------------------------------------------------------------------
+Release Notes - Apache Knox - Version 0.5.1
+------------------------------------------------------------------------------
+** Improvement
+  * [KNOX-470] - add README and site docs for samples
+
+** Bug
+    * [KNOX-467] - Unit tests failing on windows. Second attempt.
+    * [KNOX-467] - Unit tests failing on windows
+    * [KNOX-466] - Log exception stack traces at INFO level when they reach gateway servlet
+    * [KNOX-459] - added null checks to the closing of resultEnums to avoid NPEs
+    * [KNOX-465] - Initial audit record can contain leftover principal name
+    * [KNOX-459] - fixed LDAP connection leaks in KnoxLdapRealm
+    * [KNOX-464] - Location headers have wrong hostname when used behind load balancer
+    * [KNOX-468] - update group lookup topologies to configure cache manager
+
+------------------------------------------------------------------------------
 Release Notes - Apache Knox - Version 0.5.0
 ------------------------------------------------------------------------------
+** New Feature
+    * [KNOX-74] - Support YARN REST API access via the Gateway
+    * [KNOX-25] - KNOX should support authentication using SPNEGO from browser
+
+** Improvements
+    * [KNOX-455] - Configuration for Excluding SSL Protocols
+    * [KNOX-422] - provide support for IBM JVM - via Pascal Oliva
+    * [KNOX-437] - KnoxLdapContextFactory should be configured by default in all topology files
+    * [KNOX-88] - Support HDFS HA
+    * [KNOX-415] - Add some static group entires, associate some users with groups in user.ldif in the bundled Apache DS
+    * [KNOX-404] - GATEWAY_HOME/conf needs to be added to gateway server classpath
+    * [KNOX-402] - New GatewayService - TopologyService
+    * [KNOX-401] - Add service role request attribute
+    * [KNOX-355] - Support KNOX authentication provider based on hadoop.security.authentication.server.AuthenticationHandler
+    * [KNOX-353] - adding support for hadoop java client through redirection
+    * [KNOX-375] - add functional test for KNOX-242 find client bind dn using ldapsearch
+
 ** Bug
+    * [KNOX-451] - WebHDFS HA failover does not account for URL of unsuccessful request
+    * [KNOX-414] - WebHDFS HA enablement in web.xml is sensitive to order of context listeners
+    * [KNOX-453] - HDFS HA not working for secure clusters
+    * [KNOX-450] - WebHDFS HA retry should also handle RetriableException scenarios
+    * [KNOX-442] - Align DSL with WebHCat REST API changes.
+    * [KNOX-448] - Remove Reference to ReflectiveOperationException
+    * [KNOX-446] - Disable unstable unit tests in WebHdfsHaFuncTest
+    * [KNOX-445] - Fix HaDescriptorManagerTest.testDescriptorStoring to be platform independent.
+    * [KNOX-444] - KnoxCLI Usability Improvements
+    * [KNOX-442] - Align Tests with Hive API Change
+    * [KNOX-441] - Ensure all pom.xml files reference junit so that excludeGroups work
+    * [KNOX-439] - URL pattern matching fails for default ports HTTP 80 and HTTPS 443
+    * [KNOX-418] - remove the Pseudo federation provider
+    * [KNOX-432] - Add Transfer_Encoding to EXCLUDE_HEADERS
+    * [KNOX-431] - Update ISSUES file for 0.5.0 release
+    * [KNOX-426] - change assertion provider name to Default
+    * [KNOX-428] - Prepare pom.xml files for publishing via mvn deploy.
+    * [KNOX-424] - Fix maven groupId
+    * [KNOX-432] - Add Transfer_Encoding to EXCLUDE_HEADERS
     * [KNOX-410] - TopologyService Incorrect when _default Topology is Deployed
+    * [KNOX-424] - Fix maven groupId
+    * [KNOX-426] - change assertion provider name to Default
+    * [KNOX-425] - rename Pseudo identity assertion provider
+    * [KNOX-421] - optimize webhdfs file upload
+    * [KNOX-413] - Yarn responses with TrackingUrl in the body not getting blanked out
+    * [KNOX-349] - Completes JSON and XML support for PUT/GET of single topology and collection.
+    * [KNOX-410] - Set topology name back to original value after deploying _default topology
+    * [KNOX-349] - KNOX API for Topology Management. Support for deploy/undeploy topologies.
+    * [KNOX-406] - Add provider name to test topologies to prevent intermittent test failures
+    * [KNOX-403] - Optimize KnoxLdapRealm to reduce number of ldapsearches
+    * [KNOX-349] - Knox API for Topology Management. Adds default admin topology to install and negative tests.
+    * [KNOX-349] - Knox API for Topology Management. Initial step only supports GETs for topologies collection and single topology.
+    * [KNOX-398] - Func test for Knox server info REST API.
+    * [KNOX-366] - fixed stale pid detection again
+    * [KNOX-398] - initial contribution for the Knox management API
+    * [KNOX-396] - gateway.sh and ldap.sh status commands incorrect
+    * [KNOX-395] - POC for Jersey Topology Service from Knox
+    * [KNOX-350] - DOAP file for the Knox Project
+    * [KNOX-391-392] - KnoxLdapRealm should use LdapName.equals for groupDn compare
+    * [KNOX-389] - Knoxcli.cmd fails when space in JAVA_HOME
+    * [KNOX-387] - replace JndiLdapRealm with KnoxLdapRelam in unit tests and functional tests
+    * [KNOX-386] - update topology template files to use KnoxLdapRealm
+    * [KNOX-385] - removed the config element for path to forward to and derive the path from the default topology name instead
+    * [KNOX-383] - log computed bind dn and the mechanism to help diagnostics
+    * [KNOX-382] - fixed extraneous output in shell scripts
+    * [KNOX-381] - Expansion of authority only URL should not be prefixed with //
+    * [KNOX-377] - detect stale pid and allow ldap server to restart in its presence
+    * [KNOX-374] - KnoxLdapRealm does not default values correctly for userSearchBase and groupSearchBase
+    * [KNOX-373] - add unit tests to verify default values for userSearchBase, groupSearchBase
+    * [KNOX-372] - add unit tests to check default values for userSearchAttributeName, userObjectClass
+    * [KNOX-371] - group membership lookup need to use userdn computed by search
+    * [KNOX-369] - add support for new config param groupSearchBase
+    * [KNOX-368] - add support for new config param userSearchBase
+    * [KNOX-370] - add support for new config param userObjectClass
+    * [KNOX-367] - add support for new config param userSearchAttributeName
+    * [KNOX-366] - detect stale pid file a allow server start in its presence.
+    * [KNOX-362] - logging of startup failure due to missing master secret and inability to prompt for one
+    * [KNOX-361] - implicitly deploy the _default app for forwarding to the default topology
+    * [KNOX-358] - refactor redirecting servlet into a forwarding servlet
+    * [KNOX-310] - Parsing of JSON response for rewriting failing
+    * [KNOX-356] - change redirect servlet to use 307s instead of 302s
+    * [KNOX-354] - added PseudoAuthFederation Provider to accept user.name as proof of a pre-authenticated authentication event.
+    * [KNOX-344] - Updated Knox Hive samples to be consistent with Hive 0.13.
 
 ------------------------------------------------------------------------------
 Release Notes - Apache Knox - Version 0.4.0

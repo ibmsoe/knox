@@ -30,6 +30,7 @@ import org.apache.hadoop.gateway.services.topology.TopologyService;
 import org.apache.hadoop.gateway.services.security.AliasService;
 import org.apache.hadoop.gateway.services.security.KeystoreService;
 import org.apache.hadoop.gateway.services.security.KeystoreServiceException;
+import org.apache.hadoop.gateway.topology.Topology;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.PropertyConfigurator;
@@ -88,15 +89,18 @@ public class KnoxCLI extends Configured implements Tool {
       if (exitCode != 0) {
         return exitCode;
       }
-      if (command.validate()) {
-          initializeServices( command instanceof MasterCreateCommand );
-          command.execute();
+      if (command != null && command.validate()) {
+        initializeServices( command instanceof MasterCreateCommand );
+        command.execute();
       } else {
-        exitCode = -1;
+        out.println("ERROR: Invalid Command" + "\n" + "Unrecognized option:" + args[0] + "\n"
+            + "A fatal exception has occurred. Program will exit.");
+        exitCode = -2;
       }
     } catch (Exception e) {
-      e.printStackTrace(err);
-      return -1;
+      e.printStackTrace( err );
+      err.flush();
+      return -3;
     }
     return exitCode;
   }
@@ -120,11 +124,11 @@ public class KnoxCLI extends Configured implements Tool {
    * <pre>
    * % knoxcli version
    * % knoxcli master-create keyName [--size size] [--generate]
-   * % knoxcli create-alias alias [--cluster c] [--generate] [--value v]
-   * % knoxcli list-alias [--cluster c]
-   * % knoxcli delete=alias alias [--cluster c]
+   * % knoxcli create-alias alias [--cluster clustername] [--generate] [--value v]
+   * % knoxcli list-alias [--cluster clustername]
+   * % knoxcli delete=alias alias [--cluster clustername]
    * % knoxcli create-cert alias [--hostname h]
-   * % knoxcli redeploy [--cluster c]
+   * % knoxcli redeploy [--cluster clustername]
    * </pre>
    * @param args
    * @return
@@ -143,16 +147,22 @@ public class KnoxCLI extends Configured implements Tool {
           return -1;
         }
       } else if (args[i].equals("delete-alias")) {
-        String alias = args[++i];
+        String alias = null;
+        if (args.length >= 2) {
+          alias = args[++i];
+        }
         command = new AliasDeleteCommand(alias);
-        if (alias.equals("--help")) {
+        if (alias == null || alias.equals("--help")) {
           printKnoxShellUsage();
           return -1;
         }
       } else if (args[i].equals("create-alias")) {
-        String alias = args[++i];
+        String alias = null;
+        if (args.length >= 2) {
+          alias = args[++i];
+        }
         command = new AliasCreateCommand(alias);
-        if (alias.equals("--help")) {
+        if (alias == null || alias.equals("--help")) {
           printKnoxShellUsage();
           return -1;
         }
@@ -283,7 +293,7 @@ public class KnoxCLI extends Configured implements Tool {
   
  private class AliasListCommand extends Command {
 
-  public static final String USAGE = "list-alias [--cluster c]";
+  public static final String USAGE = "list-alias [--cluster clustername]";
   public static final String DESC = "The list-alias command lists all of the aliases\n" +
                                     "for the given hadoop --cluster. The default\n" +
                                     "--cluster being the gateway itself.";
@@ -294,16 +304,23 @@ public class KnoxCLI extends Configured implements Tool {
    @Override
    public void execute() throws Exception {
      AliasService as = getAliasService();
+      KeystoreService keystoreService = getKeystoreService();
 
      if (cluster == null) {
        cluster = "__gateway";
      }
-     out.println("Listing aliases for: " + cluster);
-     List<String> aliases = as.getAliasesForCluster(cluster);
-     for (String alias : aliases) {
-       out.println(alias);
-     }
-     out.println("\n" + aliases.size() + " items.");
+      boolean credentialStoreForClusterAvailable =
+          keystoreService.isCredentialStoreForClusterAvailable(cluster);
+      if (credentialStoreForClusterAvailable) {
+        out.println("Listing aliases for: " + cluster);
+        List<String> aliases = as.getAliasesForCluster(cluster);
+        for (String alias : aliases) {
+          out.println(alias);
+        }
+        out.println("\n" + aliases.size() + " items.");
+      } else {
+        out.println("Invalid cluster name provided: " + cluster);
+      }
    }
 
    /* (non-Javadoc)
@@ -382,7 +399,7 @@ public class KnoxCLI extends Configured implements Tool {
 
  public class AliasCreateCommand extends Command {
 
-  public static final String USAGE = "create-alias aliasname [--cluster c] " +
+  public static final String USAGE = "create-alias aliasname [--cluster clustername] " +
                                      "[ (--value v) | (--generate) ]";
   public static final String DESC = "The create-alias command will create an alias\n" +
                                     "and secret pair within the credential store for the\n" +
@@ -439,7 +456,7 @@ public class KnoxCLI extends Configured implements Tool {
   *
   */
  public class AliasDeleteCommand extends Command {
-  public static final String USAGE = "delete-alias aliasname [--cluster c]";
+  public static final String USAGE = "delete-alias aliasname [--cluster clustername]";
   public static final String DESC = "The delete-alias command removes the\n" +
                                     "indicated alias from the --cluster specific\n" +
                                     "credential store or the gateway credential store.";
@@ -459,12 +476,19 @@ public class KnoxCLI extends Configured implements Tool {
    @Override
    public void execute() throws Exception {
      AliasService as = getAliasService();
+      KeystoreService keystoreService = getKeystoreService();
      if (as != null) {
        if (cluster == null) {
          cluster = "__gateway";
        }
-       as.removeAliasForCluster(cluster, name);
-       out.println(name + " has been successfully deleted.");
+        boolean credentialStoreForClusterAvailable =
+            keystoreService.isCredentialStoreForClusterAvailable(cluster);
+        if (credentialStoreForClusterAvailable) {
+          as.removeAliasForCluster(cluster, name);
+          out.println(name + " has been successfully deleted.");
+        } else {
+          out.println("Invalid cluster name provided: " + cluster);
+        }
      }
    }
 
@@ -585,7 +609,7 @@ public class KnoxCLI extends Configured implements Tool {
 
   private class RedeployCommand extends Command {
 
-    public static final String USAGE = "redeploy [--cluster c]";
+    public static final String USAGE = "redeploy [--cluster clustername]";
     public static final String DESC =
         "Redeploys one or all of the gateway's clusters (a.k.a topologies).";
 
@@ -593,7 +617,29 @@ public class KnoxCLI extends Configured implements Tool {
     public void execute() throws Exception {
       TopologyService ts = getTopologyService();
       ts.reloadTopologies();
-      ts.redeployTopologies(cluster);
+      if (cluster != null) {
+        if (validateClusterName(cluster, ts)) {
+          ts.redeployTopologies(cluster);
+        }
+        else {
+          out.println("Invalid cluster name provided. Nothing to redeploy.");
+        }
+      }
+    }
+
+    /**
+     * @param cluster
+     * @param ts
+     */
+    private boolean validateClusterName(String cluster, TopologyService ts) {
+      boolean valid = false;
+      for (Topology t : ts.getTopologies() ) {
+        if (t.getName().equals(cluster)) {
+          valid = true;
+          break;
+        }
+      }
+      return valid;
     }
 
     @Override

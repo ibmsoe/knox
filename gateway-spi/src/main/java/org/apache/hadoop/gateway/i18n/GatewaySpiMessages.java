@@ -46,6 +46,9 @@ public interface GatewaySpiMessages {
   @Message( level = MessageLevel.ERROR, text = "Failed to add credential: {1}" )
   void failedToAddCredential( @StackTrace( level = MessageLevel.DEBUG ) Exception e );
 
+  @Message(level = MessageLevel.ERROR, text = "Failed to remove credential: {1}")
+  void failedToRemoveCredential(@StackTrace(level = MessageLevel.DEBUG) Exception e);
+
   @Message( level = MessageLevel.ERROR, text = "Failed to get credential: {1}" )
   void failedToGetCredential(@StackTrace( level = MessageLevel.DEBUG ) Exception e);
   
@@ -75,4 +78,8 @@ public interface GatewaySpiMessages {
 
   @Message( level = MessageLevel.ERROR, text = "Gateway has failed to start. Unable to prompt user for master secret setup. Please consider using knoxcli.sh create-master" )
   void unableToPromptForMasterUseKnoxCLI();
+
+ @Message( level = MessageLevel.ERROR, text = "Error in generating certificate: {0}" )
+ void failedToGenerateCertificate( @StackTrace( level = MessageLevel.ERROR ) Exception e );
+
 }

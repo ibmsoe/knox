@@ -28,6 +28,8 @@ import org.xml.sax.SAXException;
 import java.io.StringWriter;
 
 import static org.junit.Assert.*;
+import static org.xmlmatchers.XmlMatchers.isEquivalentTo;
+import static org.xmlmatchers.transform.XmlConverters.the;
 
 public class HaDescriptorManagerTest extends XMLTestCase {
 
@@ -81,7 +83,7 @@ public class HaDescriptorManagerTest extends XMLTestCase {
             "  <service enabled=\"false\" failoverSleep=\"1000\" maxFailoverAttempts=\"42\" maxRetryAttempts=\"3\" name=\"foo\" retrySleep=\"3000\"/>\n" +
             "  <service enabled=\"true\" failoverSleep=\"5000\" maxFailoverAttempts=\"3\" maxRetryAttempts=\"5\" name=\"bar\" retrySleep=\"8000\"/>\n" +
             "</ha>\n";
-      assertXMLEqual(xml, descriptorXml);
+      assertThat( the( descriptorXml ), isEquivalentTo( the( xml ) ) );
    }
 
 
